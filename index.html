@@ -1,28 +1,516 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ZUNUU Mic Test</title>
-</head>
-<body style="background:#17152d;color:white;text-align:center;font-family:Arial;padding:40px">
-  <h1>💜 ZUNUU</h1>
-  <h3>Microphone Test</h3>
-  <button onclick="testMic()" style="padding:15px;font-size:18px">
-    Test Microphone
-  </button>
-  <p id="status">Ready</p>
 
-  <script>
-    async function testMic() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-        document.getElementById("status").textContent = "MIC WORKING ❤️";
-        stream.getTracks().forEach(track => track.stop());
-      } catch (e) {
-        document.getElementById("status").textContent =
-          "MIC ERROR: " + e.name;
-      }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZUNUU - Personal AI Assistant</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(145deg, #101426, #25204a);
+      color: white;
+      font-family: Arial, sans-serif;
     }
-  </script>
+
+    .app {
+      max-width: 600px;
+      margin: auto;
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #c4b5fd;
+      letter-spacing: 5px;
+      font-size: 34px;
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      color: #b7b8d4;
+      font-size: 13px;
+    }
+
+    .orb {
+      width: 125px;
+      height: 125px;
+      margin: 28px auto;
+      border-radius: 50%;
+      background: radial-gradient(circle, #e9d5ff, #8b5cf6, #312e81);
+      box-shadow: 0 0 35px #8b5cf6;
+      animation: glow 2s infinite alternate;
+    }
+
+    @keyframes glow {
+      from { box-shadow: 0 0 20px #8b5cf6; }
+      to { box-shadow: 0 0 55px #c4b5fd; }
+    }
+
+    #status {
+      color: #d8ccff;
+      min-height: 25px;
+      font-size: 14px;
+      margin: 12px 0;
+    }
+
+    #chat {
+      background: #1b2238;
+      border-radius: 15px;
+      padding: 14px;
+      height: 300px;
+      overflow-y: auto;
+      text-align: left;
+      margin: 20px 0;
+    }
+
+    .message {
+      padding: 11px 13px;
+      border-radius: 12px;
+      margin: 9px 0;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .user {
+      background: #4338ca;
+      margin-left: 30px;
+    }
+
+    .zunuu {
+      background: #303b58;
+      margin-right: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #555b7c;
+      border-radius: 12px;
+      background: #202944;
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 13px 20px;
+      margin: 8px 3px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      color: white;
+      background: #6d4aff;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .mic {
+      background: #e34b70;
+      padding: 16px 25px;
+      font-size: 16px;
+    }
+
+    .stop {
+      background: #555b70;
+    }
+
+    .note {
+      color: #929bb6;
+      font-size: 12px;
+      line-height: 1.6;
+      margin-top: 17px;
+    }
+
+    #backendFrame {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      border: 0;
+      left: -10px;
+      bottom: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <h1>ZUNUU</h1>
+    <div class="subtitle">Your Personal AI Assistant ❤️</div>
+
+    <div class="orb"></div>
+
+    <div id="status">Hello! Main ZUNUU hoon ❤️</div>
+
+    <div id="chat">
+      <div class="message zunuu">
+        Hello! Mujhse Hindi, Hinglish ya English mein baat karo.
+      </div>
+    </div>
+
+    <input
+      id="message"
+      type="text"
+      placeholder="ZUNUU se kuch bhi pucho..."
+    >
+
+    <div>
+      <button id="sendBtn" type="button">Send</button>
+    </div>
+
+    <div>
+      <button id="micBtn" class="mic" type="button">🎤 Speak</button>
+      <button id="stopBtn" class="stop" type="button">Stop Voice</button>
+    </div>
+
+    <div class="note">
+      Speak dabao, bolo aur recording bhejne ke liye Stop & Send dabao.
+      <br>Hindi • Hinglish • English
+    </div>
+  </div>
+
+  <iframe
+    id="backendFrame"
+    title="ZUNUU secure backend connection"
+    src="https://script.google.com/macros/s/AKfycbx3wUjJNoHae9ldMvzJ4hdj0Uk_XJB3dLG5WdrhzRBMAzN4fBojE5RrBLfeD173xbMmew/exec">
+  </iframe>
+
+<script>
+(function () {
+  "use strict";
+
+  const BACKEND_URL =
+    "https://script.google.com/macros/s/AKfycbx3wUjJNoHae9ldMvzJ4hdj0Uk_XJB3dLG5WdrhzRBMAzN4fBojE5RrBLfeD173xbMmew/exec";
+
+  const frame = document.getElementById("backendFrame");
+  const statusBox = document.getElementById("status");
+  const chat = document.getElementById("chat");
+  const input = document.getElementById("message");
+  const sendBtn = document.getElementById("sendBtn");
+  const micBtn = document.getElementById("micBtn");
+  const stopBtn = document.getElementById("stopBtn");
+
+  let recorder = null;
+  let stream = null;
+  let chunks = [];
+  let recording = false;
+  let busy = false;
+  let frameReady = false;
+  let requestNumber = 0;
+  let pendingRequest = null;
+
+  function showMessage(text, sender) {
+    const div = document.createElement("div");
+    div.className = "message " + sender;
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function setBusy(value) {
+    busy = value;
+    sendBtn.disabled = value;
+    micBtn.disabled = value;
+  }
+
+  function stopTracks() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+  }
+
+  function speak(text) {
+    if (!window.speechSynthesis) return;
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "hi-IN";
+    utterance.rate = 0.95;
+    utterance.pitch = 1.12;
+
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v =>
+      v.lang && v.lang.toLowerCase().startsWith("hi")
+    );
+
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  frame.addEventListener("load", function() {
+    frameReady = true;
+    statusBox.textContent = "ZUNUU connection ready hai ❤️";
+  });
+
+  function askBackend(type, payload) {
+    return new Promise(function(resolve, reject) {
+      if (!frameReady || !frame.contentWindow) {
+        reject(new Error("ZUNUU backend abhi load nahi hua. Page refresh karo."));
+        return;
+      }
+
+      if (pendingRequest) {
+        reject(new Error("Ek request pehle se chal rahi hai."));
+        return;
+      }
+
+      const requestId = "zunuu-" + (++requestNumber);
+
+      const timer = setTimeout(function() {
+        if (pendingRequest &&
+            pendingRequest.requestId === requestId) {
+          pendingRequest = null;
+          reject(new Error("Server se jawab nahi mila. Dobara try karo."));
+        }
+      }, 90000);
+
+      pendingRequest = {
+        requestId: requestId,
+        resolve: resolve,
+        reject: reject,
+        timer: timer
+      };
+
+      frame.contentWindow.postMessage({
+        source: "ZUNUU_PAGE",
+        requestId: requestId,
+        type: type,
+        ...payload
+      }, "*");
+    });
+  }
+
+  window.addEventListener("message", function(event) {
+    if (event.source !== frame.contentWindow) return;
+
+    const data = event.data;
+
+    if (!data || data.source !== "ZUNUU_BACKEND") return;
+    if (!pendingRequest) return;
+    if (data.requestId !== pendingRequest.requestId) return;
+
+    const request = pendingRequest;
+    pendingRequest = null;
+    clearTimeout(request.timer);
+
+    if (data.ok) {
+      request.resolve(data.result);
+    } else {
+      request.reject(new Error(data.result || "ZUNUU error."));
+    }
+  });
+
+  function sendMessage() {
+    if (busy) return;
+
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = "";
+    showMessage(message, "user");
+
+    statusBox.textContent = "ZUNUU soch rahi hai...";
+    setBusy(true);
+
+    askBackend("text", { message: message })
+      .then(function(answer) {
+        showMessage(answer, "zunuu");
+        speak(answer);
+        statusBox.textContent = "ZUNUU ready hai ❤️";
+      })
+      .catch(function(error) {
+        showMessage("Error: " + error.message, "zunuu");
+        statusBox.textContent = "Message send nahi hua.";
+      })
+      .finally(function() {
+        setBusy(false);
+      });
+  }
+
+  async function startRecording() {
+    if (busy || recording) return;
+
+    try {
+      if (!navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Browser microphone recording support nahi karta.");
+      }
+
+      if (typeof MediaRecorder === "undefined") {
+        throw new Error("MediaRecorder available nahi hai.");
+      }
+
+      window.speechSynthesis.cancel();
+      statusBox.textContent = "Microphone open ho raha hai...";
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true
+      });
+
+      chunks = [];
+
+      let options = {};
+
+      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+        options.mimeType = "audio/webm;codecs=opus";
+      } else if (MediaRecorder.isTypeSupported("audio/webm")) {
+        options.mimeType = "audio/webm";
+      }
+
+      recorder = options.mimeType
+        ? new MediaRecorder(stream, options)
+        : new MediaRecorder(stream);
+
+      recorder.ondataavailable = function(event) {
+        if (event.data && event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onerror = function() {
+        statusBox.textContent = "Recording error aaya.";
+        recording = false;
+        micBtn.textContent = "🎤 Speak";
+        stopTracks();
+      };
+
+      recorder.onstop = function() {
+        recording = false;
+        micBtn.textContent = "🎤 Speak";
+
+        const mime = recorder.mimeType || "audio/webm";
+        const blob = new Blob(chunks, { type: mime });
+
+        stopTracks();
+
+        if (!blob.size) {
+          statusBox.textContent = "Recording khaali hai. Dobara try karo.";
+          return;
+        }
+
+        sendAudio(blob);
+      };
+
+      recorder.start();
+      recording = true;
+
+      micBtn.textContent = "⏹ Recording...";
+      statusBox.textContent = "ZUNUU sun rahi hai ❤️ Stop & Send dabao.";
+
+    } catch (error) {
+      stopTracks();
+      recording = false;
+      micBtn.textContent = "🎤 Speak";
+      statusBox.textContent =
+        "Mic Error: " + error.name + " - " + error.message;
+    }
+  }
+
+  function stopRecording() {
+    if (recorder && recording && recorder.state === "recording") {
+      statusBox.textContent = "Recording bhej rahi hoon...";
+      recorder.stop();
+    }
+  }
+
+  function sendAudio(blob) {
+    if (busy) return;
+
+    if (blob.size > 8 * 1024 * 1024) {
+      statusBox.textContent = "Recording lambi hai. Chhoti recording karo.";
+      return;
+    }
+
+    setBusy(true);
+    statusBox.textContent = "ZUNUU tumhari awaaz samajh rahi hai...";
+
+    const reader = new FileReader();
+
+    reader.onload = function() {
+      const base64 = String(reader.result).split(",")[1];
+
+      if (!base64) {
+        statusBox.textContent = "Audio read nahi ho payi.";
+        setBusy(false);
+        return;
+      }
+
+      const mime = blob.type.split(";")[0] || "audio/webm";
+
+      askBackend("audio", {
+        audio: base64,
+        mimeType: mime
+      })
+        .then(function(answer) {
+          showMessage("🎤 " + answer, "zunuu");
+          speak(answer);
+          statusBox.textContent = "ZUNUU ready hai ❤️";
+        })
+        .catch(function(error) {
+          showMessage("Voice Error: " + error.message, "zunuu");
+          statusBox.textContent = "Voice process nahi hui.";
+        })
+        .finally(function() {
+          setBusy(false);
+        });
+    };
+
+    reader.onerror = function() {
+      statusBox.textContent = "Audio file read nahi ho saki.";
+      setBusy(false);
+    };
+
+    reader.readAsDataURL(blob);
+  }
+
+  function stopVoice() {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
+    if (recording) {
+      stopRecording();
+    }
+
+    statusBox.textContent = "Voice stopped.";
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+
+  input.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") sendMessage();
+  });
+
+  micBtn.addEventListener("click", function() {
+    if (recording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  });
+
+  stopBtn.addEventListener("click", stopVoice);
+
+  frame.addEventListener("error", function() {
+    frameReady = false;
+    statusBox.textContent = "Backend load nahi hua. Page refresh karo.";
+  });
+
+})();
+</script>
 </body>
 </html>
